@@ -1,1 +1,4 @@
 # BradykinesiaProject
+
+Bradykinesia is one of the cardinal symptoms of Parkinson’s disease (PD). It is defined as a slowness to initiate voluntary movement, with a progressive reduction in speed and amplitude (sequence effect). The current clinical standard is prone to both inter- and intra-rater variability by design. Furthermore, the reliability and accuracy are compromised for bradykinesia. Hence, we investigated two objective tests to assess bradykinesia with focus on the sequence effect. First, a home-based keyboard test and second a test using wearable sensors around the wrists. This project aims to (1)identify patterns in the test data that can detect the presence of sequence effect in people with PD, and to (2)determine which features derived from test data can be used in discriminant models to classify disease status and the severity score.
+
