@@ -30,16 +30,16 @@ def readJSONFile(filename):
     
     return data
 
-def reject_outliers(data, m=3, remove = 0):
-    npdata = np.array(data)
-    out = np.count_nonzero((abs(npdata - np.mean(npdata)) < m * np.std(npdata)) == 0)
-    if (remove > 0):
-        new_data = npdata[abs(npdata - np.mean(npdata)) < m * np.std(npdata)][remove:-remove]
-    else:
-        new_data = npdata[abs(npdata - np.mean(npdata)) < m * np.std(npdata)]
-    return new_data, out
-
 def segmentIntegrals(integrals):
+    """Finds and returns the local minima and maxima.
+
+        Parameters:
+            integrals(list): integral
+
+        Returns:
+            list: indices of maxima
+            list: indices of minima
+    """
     # for local maxima
     maxi = argrelextrema(integrals, np.greater, order = 50)
 
@@ -49,6 +49,17 @@ def segmentIntegrals(integrals):
     return maxi, mini
 
 def findHesitationsFreezing(CSA_T, threshold, main_freq, dt):
+    """Locates and counts the number of hesitations/halts depending on the threshold. Based on Bobić et al. (2019). Hesitations/halt has to be lower than the threshold for a certain number of time steps.
+
+        Parameters:
+            CSA_T(list): list of the cross-sectional area along the time-axis.
+            threshold(float): threshold
+            main_freq(float): frequency characteristic described by Bobić
+            dt(float): time step
+
+        Returns:
+            int: number of detected hesitations/halts
+    """
     T = 1/float(main_freq)
     steps = int((T/dt)/3)
     bool_arr = CSA_T < threshold
@@ -64,9 +75,22 @@ def findHesitationsFreezing(CSA_T, threshold, main_freq, dt):
     return counter
 
 def getAmplitudes(x, y):
+    """Computes relative angular displacement, the absolute amplitudes, and the durations of the movements
+
+            Parameters:
+                x(list): timestamps
+                y(list): angular velocity
+
+            Returns:
+                list: indices of maxima
+                list: indices of minima
+    """
+    # Take integral
     integral = F(x,y)
+    # Get local minima and maxima
     (maxi,), (mini,) = segmentIntegrals(integral)
 
+    # Compute absolute amplitudes and durations
     absAmp = np.array([])
     durations = np.array([])
     while ((mini.size != 0 and maxi.size != 0)):
@@ -78,9 +102,19 @@ def getAmplitudes(x, y):
             absAmp = np.append(absAmp, integral[maxi[0]] - integral[mini[0]])
             durations = np.append(durations, x[mini[0]] - x[maxi[0]])
             maxi = maxi[1:]
+
     return integral, absAmp, durations
     
 def createHeaderDict(header):
+    """Creates a dictionary with the header information
+
+        Parameters:
+            header(mat structure): header containing additional information
+
+        Returns:
+            list: indices of maxima
+            list: indices of minima
+    """
     gyro_scale = header['header'][0][0][6][0][0][1][0][0][0][0][0]
     gyro_sensorID = header['header'][0][0][6][0][0][1][0][0][1][0][0]
     gyro_FS = header['header'][0][0][6][0][0][1][0][0][2][0][0]
@@ -102,7 +136,16 @@ def createHeaderDict(header):
     
     return header_df
 
-def find_nearest(array,value):
+def find_nearest(array, value):
+    """Creates a dictionary with the header information
+
+        Parameters:
+            array(array): array of values
+            value(float): value that we want to find in the array or the closest element to that value
+
+        Returns:
+            float: closest element to the value
+    """
     idx = np.searchsorted(array, value, side="left")
     if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
         return array[idx-1]
@@ -110,6 +153,15 @@ def find_nearest(array,value):
         return array[idx]
     
 def F(x, y):
+    """Take the integral of the angular velocities
+
+        Parameters:
+            x(list): timestamps
+            y(list): angular velocities
+
+        Returns:
+            list: list of integral values
+    """
     integral = np.array([])
     old = 0.0
     for velocity in y:
@@ -118,6 +170,18 @@ def F(x, y):
     return integral
 
 def getSensorData(data, start, end):
+    """Extract the sensor data from defined time interval.
+
+        Parameters:
+            data(list): data
+            start(float): start time of interval
+            end(float): end time of interval
+
+        Returns:
+            array: gyroscope data along x-, y-, and z-axis
+            int: sampling frequency
+            list: timestamps
+    """
     gyro_data = data['sensorData'][0][1][3]
     gyro_FS = data['sensorData'][0][1][2][0][0]
     gyro_timestamps = np.concatenate(data['sensorData'][0][1][4]).ravel()
@@ -133,6 +197,7 @@ def createSubjectFromData(filename, timeslot_choice):
     
     Parameters:
         filename(dict): filename of the JSON file
+        timeslot_choice(string): time slot mode (10 seconds vs all)
     
     Returns: 
         Subject object: initiated object of the Subject class containing the data
@@ -332,16 +397,7 @@ def createSubjectFromData(filename, timeslot_choice):
 
 class Subject:
     """ 
-    This class contains all collected information about the subject from the wearable sensor data collected during the supination pronation movements of the hands. 
-      
-    Attributes: 
-        subject_id (string): the id of the subject that is noted in the filename
-        side: side affected
-        years: number of years the symptons were present
-        UPDRS-3_4a: UPDRS score for finger tapping test 3.4 right hand
-        UPDRS-3_4b: UPDRS score for finger tapping test 3.4 left hand
-        serial (string): the serial number of the subject
-        hand (string): dominant hand
+    This class contains all collected information about the subject from the wearable sensor data collected during the supination pronation movements of the hands.
     """
     def __init__(self, subject_id, diagnosis, typist, side, years, UPDRS3_4a, UPDRS3_4b, UPDRS3_5a, UPDRS3_5b, UPDRS3_6a, UPDRS3_6b, serial, handedness, header_LW, header_RW, gyro_data_LW, gyro_FS_LW, gyro_timestamps_LW, gyro_data_RW, gyro_FS_RW, gyro_timestamps_RW):
         # General info
@@ -376,7 +432,9 @@ class Subject:
         return data_t
         
 class Subjects:
-    
+    """
+        Loads all subjects.
+    """
     def __init__(self, timeslot_choice):
         self.PD_OFF_ids = ["PD01_OFF", "PD03_OFF", "PD04_OFF", "PD05_OFF", "PD09_OFF", "PD13_OFF", "PD16_OFF", "PD17_OFF", "PD22_OFF", "PD25_OFF", "PD29_OFF", "PD31_OFF", "PD33_OFF", "PD34_OFF", "PD36_OFF", "PD37_OFF", "PD38_OFF", "PD39_OFF"] # "PD21_OFF", "PD08_OFF"
         self.PD_ON_ids = ["PD01_ON", "PD03_ON", "PD04_ON", "PD05_ON", "PD08_ON", "PD09_ON", "PD13_ON", "PD17_ON", "PD22_ON", "PD25_ON", "PD29_ON", "PD31_ON", "PD33_ON", "PD34_ON", "PD36_ON", "PD38_ON", "PD39_ON"] # "PD21_ON" "PD37_ON" "PD16_ON"
@@ -406,11 +464,10 @@ class Subjects:
         return self.df[self.df['subject_id'].str.contains('CA')]
     
 class Wear4PD():
+    """
+        Loads all features from all subjects and saves them in a dataframe.
+    """
     def __init__(self, savepath="./models/", timeslot_choice = "full"):
-        """
-        Description:
-            init method for class
-        """
         # load subjects on initialization; subjects with flight and dwell times (top 5% outliers + first and last 10 taps removed)
         self.subjects = Subjects(timeslot_choice).subjects
         self.savepath = savepath
@@ -419,6 +476,15 @@ class Wear4PD():
         self.params = {}
     
     def preprocess(self, df):
+        """
+        Normalize features with MinMax scaler.
+
+        Parameters:
+            df(dataframe): dataframe of features
+
+        Returns:
+            dataframe: preprocessed dataframe
+        """
         # normalize data
         contcols = [c for c in df.columns if c != "subject_id" and c != "UPDRS" and c != "diagnosis" and c != "side" and c != "typist" and c != "handedness" and c != "years" and c != "dominant" and c != "affected"]
         df[contcols] = MinMaxScaler().fit_transform(df[contcols])
@@ -804,41 +870,7 @@ class Wear4PD():
         
         self.X = self.df.drop(columns=["subject_id", "UPDRS", "diagnosis", "handedness", "years", "dominant", "affected"]).to_numpy()
         self.y = self.df['UPDRS'].to_numpy()
-        self.label_dict = dict(zip([0, 1, 2, 3], ['UPDRS_0', 'UPDRS_1', 'UPDRS_2','UPDRS_3']))   
-    
-    def save(self, model, modelname):
-        """
-        Description:
-            method to save trained model
-        
-        Arguments:
-            model - trained model
-        """
-        with open(self.savepath + modelname, 'wb') as file:
-            pickle.dump(model, file)
-            
-    def gridsearch(self, param_grid, clf, scoring=None, k=5, n_jobs=4, verbose=2, obj = "BA"):
-        """
-        Description:
-            method to perform Grid Search CV
-        Arguments:
-            param_grid - [dictionary] parameter grid settings
-            clf - [sklearn] classifier model for grid search
-            k - [int] k-fold value
-            n_jobs - [int] number of jobs (Parallelization)
-        Returns:
-            cv_clf - [sklearn] trained model after grid search
-        """
-        cv_clf = GridSearchCV(clf, param_grid, scoring=scoring, refit=obj, n_jobs=n_jobs, cv=k, verbose=verbose)
-        cv_clf.fit(self.X_train, self.y_train)
-        return cv_clf
-
-
-    def get_params(self, key):
-        return self.params[key]
-    
-    def set_params(self, key, params):
-        self.params[key] = params
+        self.label_dict = dict(zip([0, 1, 2, 3], ['UPDRS_0', 'UPDRS_1', 'UPDRS_2','UPDRS_3']))
             
     def plotIntegrals(self):
         for s in self.subjects:
@@ -913,23 +945,4 @@ class Wear4PD():
                 ax.label_outer()
 
             fig.savefig('Plots/' + s.subject_id + '_Integrals.png')
-
-def run(clf, data, n_runs=30, output=None):    
-    """
-    Run the evaluation of a classifier for n times.
-
-    Args:
-        clf    = [Classifier] classifier to evaluate 
-        data   = [Tadpole] Tadpole dataset
-        n_runs = [int] number of runs
-        output = [string] save path of the output
-
-    Returns [pd.DataFrame]:
-        Scores from the evaluation of the classifier.
-    """
-    evaluator = Evaluator(clf, data, n_runs=n_runs)
-    evaluator.evaluate()
-    if output:
-        evaluator.export_to_csv(output)
-    return evaluator.get_scores()
         

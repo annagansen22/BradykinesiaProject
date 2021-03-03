@@ -4,34 +4,43 @@ import numpy as np
 import scipy.stats as stats
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
-import pickle
-from evaluator import Evaluator
-
-# Importing Statistics module 
 import statistics 
 
 class Key2PD():
-    def __init__(self, savepath="./models/", classification = "UPDRS", selected = False, typist = False, brain = False, threeGroups = False):
+    def __init__(self, classification = "UPDRS", selected = False, typist = False, brain = False, threeGroups = False):
         """
-        Description:
-            init method for class
+            Initialise class
+
+            Parameters:
+                classification(string): classification mode
+                selected(boolean): option to select certain features
+                typist(boolean): include typist information or not
+                brain(boolean): select BRAIN test features only
+                threeGroups(boolean): Exclude PD ON or not
         """
-        # load subjects on initialization; subjects with flight and dwell times (top 5% outliers + first and last 10 taps removed)
         self.subjects = Subjects().subjects
         self.selected = selected
         self.threeGroups = threeGroups
         self.typist = typist
         self.brain = brain
-        self.savepath = savepath
-        if (classification == "group"):
+        if classification == "group":
             self.loadGroup()
-        elif (classification == "updrs10"):
+        elif classification == "updrs10":
             self.loadUPDRS10()
         else:
             self.loadUPDRS()
-        self.params = {"dtc_updrs" : {"class_weight": "balanced", "criterion": "entropy", "max_depth": 8, "max_features": "log2", "min_samples_leaf": 0.2, "min_samples_split": 0.1, "splitter": "best"}, "lra_updrs" : {"C": 11.288378916846883, "class_weight": "balanced", "dual": False, "penalty": "l2", "solver": "newton-cg", "tol": 0.1}, "svc_updrs" : {"C": 1, "class_weight": "balanced", "gamma": 0.0001, "kernel": "rbf", "tol": 0.001}, "ann_updrs" : {"activation": "tanh", "alpha": 0.0001, "hidden_layer_sizes": (50, 100, 50), "learning_rate": "constant", "solver": "adam"}, "lra_group": {"C": 11.288378916846883, "class_weight": "balanced", "dual": False, "penalty": "l1", "solver": "liblinear", "tol": 1}, "dtc_group": {"class_weight": "balanced", "criterion": "entropy", "max_depth": 8, "max_features": "auto", "min_samples_leaf": 0.1, "min_samples_split": 0.2, "splitter": "best"}, "ann_group": {"activation": "tanh", "alpha": 0.0001, "hidden_layer_sizes": (100,), "learning_rate": "adaptive", "solver": "adam"}, "svc_group": {"C": 1, "class_weight": None, "gamma": 0.001, "kernel": "linear", "tol": 1}}
-    
+        # self.params = {"dtc_updrs" : {"class_weight": "balanced", "criterion": "entropy", "max_depth": 8, "max_features": "log2", "min_samples_leaf": 0.2, "min_samples_split": 0.1, "splitter": "best"}, "lra_updrs" : {"C": 11.288378916846883, "class_weight": "balanced", "dual": False, "penalty": "l2", "solver": "newton-cg", "tol": 0.1}, "svc_updrs" : {"C": 1, "class_weight": "balanced", "gamma": 0.0001, "kernel": "rbf", "tol": 0.001}, "ann_updrs" : {"activation": "tanh", "alpha": 0.0001, "hidden_layer_sizes": (50, 100, 50), "learning_rate": "constant", "solver": "adam"}, "lra_group": {"C": 11.288378916846883, "class_weight": "balanced", "dual": False, "penalty": "l1", "solver": "liblinear", "tol": 1}, "dtc_group": {"class_weight": "balanced", "criterion": "entropy", "max_depth": 8, "max_features": "auto", "min_samples_leaf": 0.1, "min_samples_split": 0.2, "splitter": "best"}, "ann_group": {"activation": "tanh", "alpha": 0.0001, "hidden_layer_sizes": (100,), "learning_rate": "adaptive", "solver": "adam"}, "svc_group": {"C": 1, "class_weight": None, "gamma": 0.001, "kernel": "linear", "tol": 1}}
+
     def preprocess(self, df):
+        """
+            Preprocess features
+
+            Parameters:
+                df(dataframe): dataframe of features
+
+            Output:
+                dataframe: normalized dataframe
+        """
         # normalize data
         contcols = [c for c in df.columns if c != "subject_id" and c != "UPDRS" and c != "diagnosis" and c != "UPDRS_dom" and c != "UPDRS_ndom" and c != "side" and c != "typist" and c != "hand"]
         df[contcols] = MinMaxScaler().fit_transform(df[contcols])
@@ -42,6 +51,10 @@ class Key2PD():
         return df
     
     def loadUPDRS(self):
+        """
+            Load all features from all subjects for classification
+
+        """
         df = pd.DataFrame(columns=["subject_id", "hand", "m_vs", "mn_vs", "qp_vs", "m_se_ft", "mn_se_ft", "qp_se_ft", "m_se_dt", "mn_se_dt", "qp_se_dt", "m_KS", "mn_KS", "qp_KS", "m_slope_ft", "mn_slope_ft", "qp_slope_ft", "m_slope_dt", "mn_slope_dt", "qp_slope_dt", "m_std_error_ft", "mn_std_error_ft", "qp_std_error_ft", "m_std_error_dt", "mn_std_error_dt", "qp_std_error_dt", "m_intercept_ft", "mn_intercept_ft", "qp_intercept_ft", "m_intercept_dt", "mn_intercept_dt", "qp_intercept_dt", "qp_err", "mn_err", "m_err", "UPDRS", "typist", "qp_AT_30", "qp_DS_30", "qp_KS_30", "qp_IS_30", "qp_VS_30", "qp_AT_60", "qp_DS_60", "qp_IS_60", "qp_VS_60", "qp_hesitations_dt", "mn_hesitations_dt", "m_hesitations_dt", "qp_hesitations_ft", "mn_hesitations_ft", "m_hesitations_ft", "affected", "diagnosis", "mn_AT_60", "mn_DS_60", "mn_IS_60", "m_AT_60", "m_DS_60", "m_IS_60", "dominant"]) 
             
         for s in self.subjects:
@@ -139,6 +152,10 @@ class Key2PD():
         self.label_dict = dict(zip([0, 1, 2, 3], ["UPDRS_0", "UPDRS_1", "UPDRS_2","UPDRS_3"]))
         
     def loadUPDRS10(self):
+        """
+            Load all first 10 seconds features from all subjects for classification (used for experiment)
+
+        """
         df = pd.DataFrame(columns=["subject_id", "hand", "m_se_ft", "mn_se_ft", "qp_se_ft", "m_se_dt", "mn_se_dt", "qp_se_dt", "m_KS", "mn_KS", "qp_KS", "m_slope_ft", "mn_slope_ft", "qp_slope_ft", "m_slope_dt", "mn_slope_dt", "qp_slope_dt", "m_std_error_ft", "mn_std_error_ft", "qp_std_error_ft", "m_std_error_dt", "mn_std_error_dt", "qp_std_error_dt", "m_intercept_ft", "mn_intercept_ft", "qp_intercept_ft", "m_intercept_dt", "mn_intercept_dt", "qp_intercept_dt", "qp_err", "mn_err", "m_err", "diagnosis", "UPDRS", "typist", "qp_AT", "qp_DS", "qp_IS", "qp_VS"])
             
         for s in self.subjects:
@@ -198,6 +215,9 @@ class Key2PD():
         self.label_dict = dict(zip([0, 1, 2, 3], ["UPDRS_0", "UPDRS_1", "UPDRS_2","UPDRS_3"]))
         
     def loadGroup(self, time = "ft"):
+        """
+            Load all group features from all subjects for classification (used for experiment including assymmetry)
+        """
         if (time == "ft"):
             df = pd.DataFrame(columns=["subject_id", "hand", "m_dom_vs", "mn_dom_vs", "qp_dom_vs", "m_ndom_vs", "mn_ndom_vs", "qp_ndom_vs", "m_asymmetry_slope_ft", "m_asymmetry_intercept_ft", "m_asymmetry_std_error_ft", "mn_asymmetry_slope_ft", "mn_asymmetry_intercept_ft", "mn_asymmetry_std_error_ft", "qp_asymmetry_slope_ft", "qp_asymmetry_intercept_ft", "qp_asymmetry_std_error_ft", "m_dom_se_ft", "m_ndom_se_ft", "mn_dom_se_ft", "mn_ndom_se_ft", "qp_dom_se_ft", "qp_ndom_se_ft", "m_dom_KS", "m_ndom_KS", "mn_dom_KS", "mn_ndom_KS", "qp_dom_KS", "qp_ndom_KS", "m_dom_slope_ft", "m_ndom_slope_ft", "mn_dom_slope_ft", "mn_ndom_slope_ft", "qp_dom_slope_ft", "qp_ndom_slope_ft", "m_dom_std_error_ft", "m_ndom_std_error_ft", "mn_dom_std_error_ft", "mn_ndom_std_error_ft", "qp_dom_std_error_ft", "qp_ndom_std_error_ft", "m_dom_intercept_ft", "m_ndom_intercept_ft", "mn_dom_intercept_ft", "mn_ndom_intercept_ft", "qp_dom_intercept_ft", "qp_ndom_intercept_ft", "qp_dom_err", "qp_ndom_err", "mn_dom_err", "mn_ndom_err", "m_dom_err", "m_ndom_err", "diagnosis", "UPDRS_dom", "UPDRS_ndom", "side", "typist", "qp_dom_AT_30", "qp_dom_DS_30", "qp_dom_KS_30", "qp_dom_IS_30", "qp_ndom_AT_30", "qp_ndom_DS_30", "qp_ndom_KS_30", "qp_ndom_IS_30", "qp_dom_VS_30", "qp_ndom_VS_30", "qp_dom_AT_60", "qp_dom_DS_60", "qp_dom_IS_60", "qp_ndom_AT_60", "qp_ndom_DS_60", "qp_ndom_IS_60", "qp_dom_VS_60", "qp_ndom_VS_60", "qp_dom_hesitations_ft", "qp_ndom_hesitations_ft", "mn_dom_hesitations_ft", "mn_ndom_hesitations_ft", "m_dom_hesitations_ft", "m_ndom_hesitations_ft"])
         elif (time == "dt"):
@@ -285,63 +305,32 @@ class Key2PD():
         self.label_dict = dict(zip([0, 1, 2, 3], ["PD_OFF", "PD_ON", "CA","HC"]))
         
     def split(self, random_state=0, test_size=0.2):
-        """
-        Description:
-        method to split dataset into train and test
-        """
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=random_state, stratify=self.y)
-        return self.X_train, self.X_test, self.y_train, self.y_test      
-    
-    def save(self, model, modelname):
-        """
-        Description:
-            method to save trained model
-        
-        Arguments:
-            model - trained model
-        """
-        with open(self.savepath + modelname, "wb") as file:
-            pickle.dump(model, file)
+        return self.X_train, self.X_test, self.y_train, self.y_test
             
     def gridsearch(self, param_grid, clf, scoring=None, k=5, n_jobs=4, verbose=2, obj = "BA"):
         """
-        Description:
-            method to perform Grid Search CV
-        Arguments:
-            param_grid - [dictionary] parameter grid settings
-            clf - [sklearn] classifier model for grid search
-            k - [int] k-fold value
-            n_jobs - [int] number of jobs (Parallelization)
-        Returns:
-            cv_clf - [sklearn] trained model after grid search
+            Perform GridSearch
+
+            Parameters:
+                param_grid(dict): dictionary of possible params
+                clf(classifier): classifier
+                scoring(string/scorer): scoring metric
+                k(int): folds of cross validation
+                n_jobs(int): number of jobs to run in parallel
+                verbose(int): control of verbosity
+                obj(string): scorer that is used to refit data
+
+            Output:
+                GridSearchCV: GridSearchCV with best params
         """
         cv_clf = GridSearchCV(clf, param_grid, scoring=scoring, refit=obj, n_jobs=n_jobs, cv=k, verbose=verbose)
         cv_clf.fit(self.X_train, self.y_train)
         return cv_clf
 
 
-    def get_params(self, key):
-        return self.params[key]
-    
-    def set_params(self, key, params):
-        self.params[key] = params
-
-def run(clf, data, n_runs=30, output=None):    
-    """
-    Run the evaluation of a classifier for n times.
-
-    Args:
-        clf    = [Classifier] classifier to evaluate 
-        data   = [Tadpole] Tadpole dataset
-        n_runs = [int] number of runs
-        output = [string] save path of the output
-
-    Returns [pd.DataFrame]:
-        Scores from the evaluation of the classifier.
-    """
-    evaluator = Evaluator(clf, data, n_runs=n_runs)
-    evaluator.evaluate()
-    if output:
-        evaluator.export_to_csv(output)
-    return evaluator.get_scores()
-        
+    # def get_params(self, key):
+    #     return self.params[key]
+    #
+    # def set_params(self, key, params):
+    #     self.params[key] = params
